@@ -1,0 +1,22 @@
+version: '3.4'
+services: 
+  qpsk_trx:
+    build:
+      context: .
+      dockerfile: Dockerfile.qpsk_trx
+      target: deploy
+    image: qpsk_trx:deploy
+    ports:
+      - "8000:8000"
+      - "10000:10000"
+      - "10001:10001"
+      - "10002:10002"
+      - "10003:10003"
+      - "10004:10004"
+      - "10005:10005"
+    volumes:
+      - ./qpsk_trx_flowgraphs:/qpsk_trx_flowgraphs
+    entrypoint:
+      ["python3", "/qpsk_trx_flowgraphs/SDR_to_SDR_BPSK_headless.py"]
+volumes:
+  qpsk_trx_flowgraphs:

@@ -1,0 +1,104 @@
+# clone https://github.com/muaddib1984/gr-webspectrum to the same directory as this Dockerfile
+
+FROM python:3.11-alpine AS build
+ENV PYTHONPATH "${PYTHONPATH}:/usr/lib/python3.11/site-packages:/usr/lib/python3.11/dist-packages:/usr/local/lib/python3.11/site-packages"
+ENV LD_LIBRARY_PATH "${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib"
+ENV PYTHON_INCLUDE_DIRS=/usr/local/lib/python3.11/site-packages/numpy/core/include
+
+# set proxy variables
+RUN export https_proxy=http://33717:Fri@10.20.28.20:8080 && \
+    export HTTPS_PROXY=http://33717:Fri@10.20.28.20:8080 && \
+    export HTTP_PROXY=http://33717:Fri@10.20.28.20:8080 && \
+    export http_proxy=http://33717:Fri@10.20.28.20:8080 && \
+	apk update && \
+	apk add --no-cache cmake \
+	    make \
+        g++ \
+	    gcc \
+	    dpkg \
+	    pkgconfig \
+        git \
+	    nano \
+	    redis \
+        boost-dev \
+        gsl \
+        mpir \
+        fftw-dev \
+        cppzmq \
+        py3-pybind11-dev \
+        gmp-dev \
+        spdlog-dev \
+        ccmake \
+	zeromq-dev \
+	uhd \
+	uhd-libs \
+	uhd-dev \
+        libvolk-dev --repository=https://dl-cdn.alpinelinux.org/alpine/edge/community && \
+	    pip install numpy packaging
+
+RUN # set proxy variables
+RUN export https_proxy=http://33717:Fri@10.20.28.20:8080 && \
+    export HTTPS_PROXY=http://33717:Fri@10.20.28.20:8080 && \
+    export HTTP_PROXY=http://33717:Fri@10.20.28.20:8080 && \
+    export http_proxy=http://33717:Fri@10.20.28.20:8080 && \
+    git clone https://github.com/gnuradio/gnuradio
+RUN cd gnuradio && mkdir build && cd build && \
+        cmake \
+        -DENABLE_MANPAGES=OFF \
+        -DENABLE_POSTINSTALL=OFF \
+        -DENABLE_GR_CTRLPORT=OFF \
+        -DENABLE_TESTING=OFF \
+        -DENABLE_GR_DTV=OFF \
+        -DENABLE_GR_AUDIO=OFF \
+        -DENABLE_GR_CHANNELS=OFF \
+        -DENABLE_GR_VOCODER=OFF \
+        -DENABLE_GR_BLOCKTOOL=OFF \
+        -DENABLE_GR_TRELLIS=OFF \
+        ..
+RUN cd gnuradio/build && make -j && make install
+
+RUN ldconfig /etc/ld.so.conf.d && \
+    rm -rf /root/.cache && \
+    rm -rf /usr/local/lib/python3.11/lib2to3 && \
+    rm -rf /usr/local/lib/python3.11/__pycache__ && \
+    rm -rf /usr/local/lib/pip && \
+    rm -rf /usr/local/lib/tkinter && \
+    rm -rf /usr/local/lib/python3.11/ensurepip && \
+    rm -rf /var/cache/* && \
+    find / | grep -E "(__pycache__|\.pyc|\.pyo$)" |xargs rm -rf
+
+
+FROM python:3.11-alpine AS deploy
+ENV PYTHONPATH "${PYTHONPATH}:/usr/lib/python3.11/site-packages:/usr/lib/python3.11/dist-packages:/usr/local/lib/python3.11/site-packages"
+ENV LD_LIBRARY_PATH "${LD_LIBRARY_PATH}:/lib:/usr/lib:/usr/local/lib"
+# set proxy variables
+RUN export https_proxy=http://33717:Fri@10.20.28.20:8080 && \
+    export HTTPS_PROXY=http://33717:Fri@10.20.28.20:8080 && \
+    export HTTP_PROXY=http://33717:Fri@10.20.28.20:8080 && \
+    export http_proxy=http://33717:Fri@10.20.28.20:8080 && \
+    apk update && \
+    apk add boost-program_options \
+    boost-regex \
+    boost-unit_test_framework \
+    boost-thread \
+    spdlog \
+    gmp-dev \
+    libvolk \
+    fftw \
+    uhd \
+    zeromq-dev && pip3 install zmq --compile --no-cache-dir
+# copy necessary binaries libs from build stage
+COPY --from=build /root/ /root/
+COPY --from=build /usr/local/ /usr/local
+COPY --from=build /usr/local/bin/ /usr/local/bin
+
+RUN ldconfig /etc/ld.so.conf.d && \
+    rm -rf /root/.cache && \
+    rm -rf /usr/local/lib/python3.11/lib2to3 && \
+    rm -rf /usr/local/lib/python3.11/__pycache__ && \
+    rm -rf /usr/local/lib/pip && \
+    rm -rf /usr/local/lib/tkinter && \
+    rm -rf /usr/local/lib/python3.11/ensurepip && \
+    rm -rf /var/cache/* && \
+    find / | grep -E "(__pycache__|\.pyc|\.pyo$)" |xargs rm -rf
+
